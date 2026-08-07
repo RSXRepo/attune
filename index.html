@@ -4,7 +4,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-<title>Attune v0.5.7</title>
+<title>Attune v0.5.9</title>
 <style>
   :root{
     --gold:#d7b979;
@@ -328,6 +328,7 @@
   }
   .stl-download:hover{filter:brightness(1.08)}
   .stl-download:active{transform:translateY(1px)}
+  .stl-download{min-width:280px}
   .stl-note{
     color:#a89a83;
     font-size:12px;
@@ -444,13 +445,10 @@
   </section>
 
   <div class="stl-panel">
-    <a class="stl-download"
-       href="./QFOG_v0.1_256_384.stl"
-       download="QFOG_v0.1_256_384.stl"
-       aria-label="Download QFOG 256 384 hertz STL">
-      Download STL
-    </a>
-    <div class="stl-note">QFOG v0.1 • 256 Hz / 384 Hz calibration prototype</div>
+    <button type="button" class="stl-download" id="stlBtn">
+      Generate &amp; Download STL
+    </button>
+    <div class="stl-note" id="stlNote">Current dials • 256.0 Hz / 384.0 Hz</div>
   </div>
 
 </div>
@@ -486,6 +484,8 @@
   var audioStatus = document.getElementById("audioStatus");
   var leftForkVisual = document.getElementById("leftForkVisual");
   var rightForkVisual = document.getElementById("rightForkVisual");
+  var stlBtn = document.getElementById("stlBtn");
+  var stlNote = document.getElementById("stlNote");
 
   function setStatus(text) {
     if (audioStatus) audioStatus.textContent = text;
@@ -688,6 +688,11 @@
 
     updateForkGeometry();
 
+    if (stlNote) {
+      stlNote.textContent =
+        "Current dials • " + rootFreq.toFixed(1) + " Hz / " + harmony.toFixed(1) + " Hz";
+    }
+
     if (ctx && ctx.state === "running") {
       var now = ctx.currentTime;
 
@@ -823,6 +828,271 @@
   window.addEventListener("pageshow", function() {
     if (ctx) setStatus("Audio: " + ctx.state);
   });
+
+
+  // ------------------------------------------------------------
+  // LIVE QFOG STL GENERATOR v2
+  // Robust voxel-union mesh: creates one printable watertight body
+  // directly from the current Root and Harmony frequencies.
+  // ------------------------------------------------------------
+
+  function tineLengthForHz(f){
+    // Calibration model v0.1: f is approximately proportional to 1/L^2.
+    // 256 Hz maps to a 100 mm free tine.
+    return 100 * Math.sqrt(256 / Math.max(40, f));
+  }
+
+  function insideRoundedRect(x,y,x0,x1,y0,y1,r){
+    var cx = Math.max(x0+r, Math.min(x1-r, x));
+    var cy = Math.max(y0+r, Math.min(y1-r, y));
+    var dx = x-cx, dy = y-cy;
+    return dx*dx + dy*dy <= r*r;
+  }
+
+  function isInsideQFOG(x,y,leftHz,rightHz){
+    var hubR = 21;
+    var hubHoleR = 8.5;
+    var shoulder = 16;
+    var rootBridge = 31;
+    var tineWidth = 9;
+    var forkGap = 11;
+    var endR = 4.5;
+
+    var leftLen = tineLengthForHz(leftHz);
+    var rightLen = tineLengthForHz(rightHz);
+
+    // Central annular hub.
+    var rr = x*x + y*y;
+    var inHub = rr <= hubR*hubR && rr >= hubHoleR*hubHoleR;
+
+    // Small solid webs at left and right connect into the ring.
+    var inLeftWeb = insideRoundedRect(
+      x,y,-hubR-shoulder,-hubR+3,-rootBridge/2,rootBridge/2,3
+    );
+    var inRightWeb = insideRoundedRect(
+      x,y,hubR-3,hubR+shoulder,-rootBridge/2,rootBridge/2,3
+    );
+
+    var yc = forkGap/2 + tineWidth/2;
+
+    // Tines overlap the webs slightly so the voxel union is connected.
+    var lx0 = -hubR-shoulder-leftLen;
+    var lx1 = -hubR-shoulder+2;
+    var rx0 =  hubR+shoulder-2;
+    var rx1 =  hubR+shoulder+rightLen;
+
+    var inLeftTop = insideRoundedRect(
+      x,y,lx0,lx1,yc-tineWidth/2,yc+tineWidth/2,endR
+    );
+    var inLeftBottom = insideRoundedRect(
+      x,y,lx0,lx1,-yc-tineWidth/2,-yc+tineWidth/2,endR
+    );
+    var inRightTop = insideRoundedRect(
+      x,y,rx0,rx1,yc-tineWidth/2,yc+tineWidth/2,endR
+    );
+    var inRightBottom = insideRoundedRect(
+      x,y,rx0,rx1,-yc-tineWidth/2,-yc+tineWidth/2,endR
+    );
+
+    return inHub || inLeftWeb || inRightWeb ||
+           inLeftTop || inLeftBottom || inRightTop || inRightBottom;
+  }
+
+  function pushTri(tris,a,b,c){
+    tris.push([a,b,c]);
+  }
+
+  function addQuad(tris,a,b,c,d,flip){
+    if(!flip){
+      pushTri(tris,a,b,c);
+      pushTri(tris,a,c,d);
+    }else{
+      pushTri(tris,a,c,b);
+      pushTri(tris,a,d,c);
+    }
+  }
+
+  function makeVoxelQFOG(leftHz,rightHz){
+    // 1.25 mm XY voxel pitch gives a visibly substantial STL while staying fast.
+    var cell = 1.25;
+    var thickness = 8.0;
+    var z0 = -thickness/2;
+    var z1 =  thickness/2;
+
+    var leftLen = tineLengthForHz(leftHz);
+    var rightLen = tineLengthForHz(rightHz);
+    var xmin = Math.floor((-21-16-leftLen-3)/cell)*cell;
+    var xmax = Math.ceil((21+16+rightLen+3)/cell)*cell;
+    var ymin = -23;
+    var ymax =  23;
+
+    var nx = Math.ceil((xmax-xmin)/cell);
+    var ny = Math.ceil((ymax-ymin)/cell);
+    var occ = new Uint8Array(nx*ny);
+
+    function idx(i,j){ return j*nx+i; }
+    function occupied(i,j){
+      if(i<0 || j<0 || i>=nx || j>=ny) return false;
+      return occ[idx(i,j)] === 1;
+    }
+
+    // Sample each XY voxel at its centre.
+    for(var j=0;j<ny;j++){
+      for(var i=0;i<nx;i++){
+        var cx = xmin + (i+0.5)*cell;
+        var cy = ymin + (j+0.5)*cell;
+        if(isInsideQFOG(cx,cy,leftHz,rightHz)){
+          occ[idx(i,j)] = 1;
+        }
+      }
+    }
+
+    var tris=[];
+
+    for(var j2=0;j2<ny;j2++){
+      for(var i2=0;i2<nx;i2++){
+        if(!occupied(i2,j2)) continue;
+
+        var x0=xmin+i2*cell, x1=x0+cell;
+        var y0=ymin+j2*cell, y1=y0+cell;
+
+        // Top (+Z) and bottom (-Z).
+        addQuad(tris,[x0,y0,z1],[x1,y0,z1],[x1,y1,z1],[x0,y1,z1],false);
+        addQuad(tris,[x0,y0,z0],[x0,y1,z0],[x1,y1,z0],[x1,y0,z0],false);
+
+        // Exposed side faces only; internal voxel faces are omitted.
+        if(!occupied(i2-1,j2)){
+          addQuad(tris,[x0,y0,z0],[x0,y0,z1],[x0,y1,z1],[x0,y1,z0],false);
+        }
+        if(!occupied(i2+1,j2)){
+          addQuad(tris,[x1,y0,z0],[x1,y1,z0],[x1,y1,z1],[x1,y0,z1],false);
+        }
+        if(!occupied(i2,j2-1)){
+          addQuad(tris,[x0,y0,z0],[x1,y0,z0],[x1,y0,z1],[x0,y0,z1],false);
+        }
+        if(!occupied(i2,j2+1)){
+          addQuad(tris,[x0,y1,z0],[x0,y1,z1],[x1,y1,z1],[x1,y1,z0],false);
+        }
+      }
+    }
+
+    return tris;
+  }
+
+  function sub3(a,b){
+    return [a[0]-b[0],a[1]-b[1],a[2]-b[2]];
+  }
+
+  function cross3(a,b){
+    return [
+      a[1]*b[2]-a[2]*b[1],
+      a[2]*b[0]-a[0]*b[2],
+      a[0]*b[1]-a[1]*b[0]
+    ];
+  }
+
+  function normal3(a,b,c){
+    var u=sub3(b,a), v=sub3(c,a);
+    var n=cross3(u,v);
+    var l=Math.sqrt(n[0]*n[0]+n[1]*n[1]+n[2]*n[2]) || 1;
+    return [n[0]/l,n[1]/l,n[2]/l];
+  }
+
+  function toBinarySTL(tris,leftHz,rightHz){
+    var buffer = new ArrayBuffer(84 + tris.length*50);
+    var view = new DataView(buffer);
+
+    var header = "ATTUNE QFOG " +
+      leftHz.toFixed(1) + "Hz " + rightHz.toFixed(1) +
+      "Hz live voxel STL";
+
+    for(var h=0;h<80;h++){
+      view.setUint8(h, h<header.length ? header.charCodeAt(h) : 0);
+    }
+
+    view.setUint32(80,tris.length,true);
+
+    var off=84;
+    for(var i=0;i<tris.length;i++){
+      var a=tris[i][0], b=tris[i][1], c=tris[i][2];
+      var n=normal3(a,b,c);
+      var vals=[
+        n[0],n[1],n[2],
+        a[0],a[1],a[2],
+        b[0],b[1],b[2],
+        c[0],c[1],c[2]
+      ];
+
+      for(var k=0;k<vals.length;k++){
+        view.setFloat32(off,vals[k],true);
+        off+=4;
+      }
+
+      view.setUint16(off,0,true);
+      off+=2;
+    }
+
+    return buffer;
+  }
+
+  function downloadCurrentSTL(){
+    var leftHz = rootFreq;
+    var rightHz = rootFreq*ratio;
+
+    if(stlBtn){
+      stlBtn.disabled = true;
+      stlBtn.textContent = "Generating STL…";
+    }
+
+    if(stlNote){
+      stlNote.textContent = "Building watertight mesh from current frequencies…";
+    }
+
+    // Yield one frame so the button text visibly changes first.
+    setTimeout(function(){
+      try{
+        var tris = makeVoxelQFOG(leftHz,rightHz);
+        var buffer = toBinarySTL(tris,leftHz,rightHz);
+        var blob = new Blob([buffer],{type:"application/sla"});
+        var url = URL.createObjectURL(blob);
+
+        var filename =
+          "QFOG_" + Math.round(leftHz) + "Hz_" +
+          Math.round(rightHz) + "Hz.stl";
+
+        var a=document.createElement("a");
+        a.href=url;
+        a.download=filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+
+        var kb=Math.round(blob.size/1024);
+
+        if(stlNote){
+          stlNote.textContent =
+            "Generated " + filename +
+            " • " + tris.length.toLocaleString() +
+            " triangles • " + kb.toLocaleString() + " KB";
+        }
+
+        setTimeout(function(){ URL.revokeObjectURL(url); },4000);
+      }catch(err){
+        if(stlNote){
+          stlNote.textContent = "STL generation failed: " + err.message;
+        }
+      }finally{
+        if(stlBtn){
+          stlBtn.disabled=false;
+          stlBtn.textContent="Generate & Download STL";
+        }
+      }
+    },30);
+  }
+
+  if(stlBtn){
+    stlBtn.addEventListener("click",downloadCurrentSTL);
+  }
 
   updateReadouts();
 })();
