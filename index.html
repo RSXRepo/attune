@@ -4,7 +4,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-<title>Attune v0.5.4</title>
+<title>Attune v0.5.5</title>
 <style>
   :root{
     --gold:#d7b979;
@@ -410,21 +410,16 @@
 
 <script>
 (() => {
-  let ctx;
+  let ctx = null;
   let rootFreq = 256;
   let ratio = 1.5;
   const duration = 24;
   let leftNode = null, rightNode = null;
-  let audioUnlocked = false;
 
   const intervals = [
-    ["Unison",1],
-    ["Minor Third",6/5],
-    ["Major Third",5/4],
-    ["Perfect Fourth",4/3],
-    ["Perfect Fifth",3/2],
-    ["Major Sixth",5/3],
-    ["Octave",2]
+    ["Unison",1],["Minor Third",6/5],["Major Third",5/4],
+    ["Perfect Fourth",4/3],["Perfect Fifth",3/2],
+    ["Major Sixth",5/3],["Octave",2]
   ];
 
   const rootReadout = document.getElementById("rootReadout");
@@ -437,73 +432,49 @@
   const leftForkVisual = document.getElementById("leftForkVisual");
   const rightForkVisual = document.getElementById("rightForkVisual");
 
-  // Simple physical visualisation: for otherwise similar fork tines,
-  // resonant frequency varies roughly with 1 / length^2.
-  // So displayed tine length varies approximately with 1 / sqrt(frequency).
-  function updateForkGeometry() {
-    const harmony = rootFreq * ratio;
-    const leftScale = Math.max(0.70, Math.min(1.45, Math.sqrt(256 / rootFreq)));
-    const rightScale = Math.max(0.70, Math.min(1.45, Math.sqrt(384 / harmony)));
-
-    // Keep each fork's inner end anchored beside the central hub
-    // while its outer tines grow or shrink.
-    leftForkVisual.setAttribute(
-      "transform",
-      `translate(425 0) scale(${leftScale.toFixed(4)} 1) translate(-425 0)`
-    );
-    rightForkVisual.setAttribute(
-      "transform",
-      `translate(495 0) scale(${rightScale.toFixed(4)} 1) translate(-495 0)`
-    );
-  }
-
-
-  async function ensureAudio() {
-    if (!ctx) {
+  function audioContextNow(){
+    if(!ctx){
       const AC = window.AudioContext || window.webkitAudioContext;
-      if (!AC) throw new Error("Web Audio is not supported in this browser.");
-      ctx = new AC({ latencyHint: "interactive" });
+      if(!AC){
+        if(audioStatus) audioStatus.textContent = "Audio unavailable in this browser";
+        return null;
+      }
+      ctx = new AC();
     }
-
-    if (ctx.state === "suspended") {
-      try { await ctx.resume(); } catch(e) {}
-    }
-
-    // iOS/Safari unlock: play a tiny silent buffer during a user gesture.
-    if (!audioUnlocked) {
-      try {
-        const buffer = ctx.createBuffer(1, 1, ctx.sampleRate);
-        const source = ctx.createBufferSource();
-        source.buffer = buffer;
-        const gain = ctx.createGain();
-        gain.gain.value = 0;
-        source.connect(gain).connect(ctx.destination);
-        source.start(0);
-        audioUnlocked = true;
-        if (audioStatus) audioStatus.textContent = "Audio ready";
-      } catch(e) {}
+    if(ctx.state === "suspended"){
+      ctx.resume().catch(()=>{});
     }
     return ctx;
   }
 
-  // Unlock on the first real user gesture, works on iOS Safari and Android Chrome.
-  const unlock = async () => {
-    try { await ensureAudio(); } catch(e) {
-      if (audioStatus) audioStatus.textContent = "Audio unavailable in this preview";
-    }
-  };
-  document.addEventListener("pointerdown", unlock, { once:true, passive:true });
-  document.addEventListener("touchstart", unlock, { once:true, passive:true });
-  document.addEventListener("click", unlock, { once:true, passive:true });
+  function unlockAudio(){
+    const c = audioContextNow();
+    if(!c) return;
+    try{
+      const osc = c.createOscillator();
+      const gain = c.createGain();
+      gain.gain.value = 0.00001;
+      osc.connect(gain).connect(c.destination);
+      osc.start(c.currentTime);
+      osc.stop(c.currentTime + 0.02);
+      if(audioStatus) audioStatus.textContent = "Audio ready";
+    }catch(e){}
+  }
 
-  async function makeFork(freq, pan) {
-    await ensureAudio();
-    const now = ctx.currentTime;
+  // iOS needs audio to be unlocked directly from a user gesture.
+  ["touchend","pointerup","click"].forEach(evt=>{
+    document.addEventListener(evt, unlockAudio, {once:true, passive:true});
+  });
 
-    const fundamental = ctx.createOscillator();
-    const partial = ctx.createOscillator();
-    const g1 = ctx.createGain();
-    const g2 = ctx.createGain();
+  function makeFork(freq, pan){
+    const c = audioContextNow();
+    if(!c) return null;
+
+    const now = c.currentTime;
+    const fundamental = c.createOscillator();
+    const partial = c.createOscillator();
+    const g1 = c.createGain();
+    const g2 = c.createGain();
 
     fundamental.type = "sine";
     partial.type = "sine";
@@ -511,210 +482,187 @@
     partial.frequency.setValueAtTime(freq * 2.76, now);
 
     g1.gain.setValueAtTime(0.0001, now);
-    g1.gain.exponentialRampToValueAtTime(0.52, now + 0.012);
+    g1.gain.exponentialRampToValueAtTime(0.5, now + 0.012);
     g1.gain.exponentialRampToValueAtTime(0.0001, now + duration);
 
-    g2.gain.setValueAtTime(0.085, now);
+    g2.gain.setValueAtTime(0.075, now);
     g2.gain.exponentialRampToValueAtTime(0.00001, now + 0.30);
 
-    // StereoPannerNode isn't present in every older iOS WebView.
-    if (typeof ctx.createStereoPanner === "function") {
-      const p = ctx.createStereoPanner();
+    if(typeof c.createStereoPanner === "function"){
+      const p = c.createStereoPanner();
       p.pan.value = pan;
       fundamental.connect(g1);
       partial.connect(g2);
       g1.connect(p);
       g2.connect(p);
-      p.connect(ctx.destination);
-    } else {
-      const merger = ctx.createChannelMerger(2);
-      fundamental.connect(g1);
-      partial.connect(g2);
-      if (pan < 0) {
-        g1.connect(merger, 0, 0);
-        g2.connect(merger, 0, 0);
-      } else {
-        g1.connect(merger, 0, 1);
-        g2.connect(merger, 0, 1);
-      }
-      merger.connect(ctx.destination);
+      p.connect(c.destination);
+    }else{
+      fundamental.connect(g1).connect(c.destination);
+      partial.connect(g2).connect(c.destination);
     }
 
     fundamental.start(now);
     partial.start(now);
-    fundamental.stop(now + duration + 0.05);
+    fundamental.stop(now + duration + 0.1);
     partial.stop(now + 0.34);
 
-    return { fundamental, partial };
+    return {fundamental, partial};
   }
 
-  function stopNode(node) {
-    if (!node) return;
-    try { node.fundamental.stop(); } catch(e) {}
-    try { node.partial.stop(); } catch(e) {}
+  function stopNode(node){
+    if(!node) return;
+    try{node.fundamental.stop()}catch(e){}
+    try{node.partial.stop()}catch(e){}
   }
 
-  async function strikeLeft() {
+  function strikeLeft(){
+    unlockAudio();
     stopNode(leftNode);
-    leftNode = await makeFork(rootFreq, -0.72);
+    leftNode = makeFork(rootFreq,-0.72);
   }
-  async function strikeRight() {
+
+  function strikeRight(){
+    unlockAudio();
     stopNode(rightNode);
-    rightNode = await makeFork(rootFreq * ratio, 0.72);
+    rightNode = makeFork(rootFreq*ratio,0.72);
   }
-  async function strikeBoth() {
-    await ensureAudio();
+
+  function strikeBoth(){
+    unlockAudio();
     stopNode(leftNode); stopNode(rightNode);
-    leftNode = await makeFork(rootFreq, -0.72);
-    rightNode = await makeFork(rootFreq * ratio, 0.72);
+    leftNode = makeFork(rootFreq,-0.72);
+    rightNode = makeFork(rootFreq*ratio,0.72);
   }
 
-  function nearestRatio(r) {
-    let best = intervals[0], dist = Infinity;
-    for (const pair of intervals) {
-      const d = Math.abs(Math.log(r / pair[1]));
-      if (d < dist) { dist = d; best = pair; }
+  function nearestRatio(r){
+    let best=intervals[0], dist=Infinity;
+    for(const pair of intervals){
+      const d=Math.abs(Math.log(r/pair[1]));
+      if(d<dist){dist=d;best=pair}
     }
-    return { name: best[0], value: best[1], dist };
+    return {name:best[0],value:best[1],dist};
   }
 
-  function magnetic(raw) {
-    const mode = wellsSelect.selectedIndex;
-    if (mode === 0) return raw;
-    const strength = [0, .14, .38, .66][mode];
-    const width = [0, 11, 14, 18][mode];
-    const n = nearestRatio(raw);
-    const pull = Math.max(0, 1 - n.dist * width);
-    return raw + (n.value - raw) * pull * strength;
+  function magnetic(raw){
+    const mode=wellsSelect.selectedIndex;
+    if(mode===0) return raw;
+    const strength=[0,.14,.38,.66][mode];
+    const width=[0,11,14,18][mode];
+    const n=nearestRatio(raw);
+    const pull=Math.max(0,1-n.dist*width);
+    return raw+(n.value-raw)*pull*strength;
   }
 
-  function updateReadouts() {
-    const harmony = rootFreq * ratio;
-    rootReadout.innerHTML = rootFreq.toFixed(1) + "<small>Hz</small>";
-    harmReadout.innerHTML = harmony.toFixed(1) + "<small>Hz</small>";
-    ratioReadout.textContent = ratio.toFixed(3);
+  function updateForkGeometry(){
+    const harmony=rootFreq*ratio;
+    const leftScale=Math.max(.70,Math.min(1.45,Math.sqrt(256/rootFreq)));
+    const rightScale=Math.max(.70,Math.min(1.45,Math.sqrt(384/harmony)));
+    leftForkVisual.setAttribute("transform",`translate(425 0) scale(${leftScale.toFixed(4)} 1) translate(-425 0)`);
+    rightForkVisual.setAttribute("transform",`translate(495 0) scale(${rightScale.toFixed(4)} 1) translate(-495 0)`);
+  }
 
-    const n = nearestRatio(ratio);
-    const cents = 1200 * Math.log2(ratio / n.value);
-    intervalName.textContent = n.name;
-    intervalCents.textContent = (cents >= 0 ? "+" : "") + cents.toFixed(1) + " cents";
+  function updateReadouts(){
+    const harmony=rootFreq*ratio;
+    rootReadout.innerHTML=rootFreq.toFixed(1)+"<small>Hz</small>";
+    harmReadout.innerHTML=harmony.toFixed(1)+"<small>Hz</small>";
+    ratioReadout.textContent=ratio.toFixed(3);
+
+    const n=nearestRatio(ratio);
+    const cents=1200*Math.log2(ratio/n.value);
+    intervalName.textContent=n.name;
+    intervalCents.textContent=(cents>=0?"+":"")+cents.toFixed(1)+" cents";
 
     updateForkGeometry();
 
-    if (ctx && ctx.state === "running") {
-      const now = ctx.currentTime;
-      if (leftNode?.fundamental) {
-        try {
-          leftNode.fundamental.frequency.cancelScheduledValues(now);
-          leftNode.fundamental.frequency.setTargetAtTime(Math.max(20, rootFreq), now, .025);
-        } catch(e) {}
+    if(ctx && ctx.state==="running"){
+      const now=ctx.currentTime;
+      if(leftNode?.fundamental){
+        try{leftNode.fundamental.frequency.setTargetAtTime(Math.max(20,rootFreq),now,.025)}catch(e){}
       }
-      if (rightNode?.fundamental) {
-        try {
-          rightNode.fundamental.frequency.cancelScheduledValues(now);
-          rightNode.fundamental.frequency.setTargetAtTime(Math.max(20, harmony), now, .025);
-        } catch(e) {}
+      if(rightNode?.fundamental){
+        try{rightNode.fundamental.frequency.setTargetAtTime(Math.max(20,harmony),now,.025)}catch(e){}
       }
     }
   }
 
-  function bindKnob(id, type) {
-    const knob = document.getElementById(id);
-    const pointer = knob.querySelector(".pointer");
-    let dragging = false, startY = 0, startVal = 0, activePointer = null;
+  function bindKnob(id,type){
+    const knob=document.getElementById(id);
+    const pointer=knob.querySelector(".pointer");
+    let dragging=false,startY=0,startVal=0;
 
-    function norm() {
-      return type === "root"
-        ? (rootFreq - 64) / (1024 - 64)
-        : (ratio - .8) / (2.2 - .8);
+    function norm(){
+      return type==="root"
+        ? (rootFreq-64)/(1024-64)
+        : (ratio-.8)/(2.2-.8);
     }
 
-    function visual() {
-      const n = Math.max(0, Math.min(1, norm()));
-      const deg = -135 + n * 270;
-      pointer.style.transform = `translateX(-50%) rotate(${deg}deg)`;
+    function visual(){
+      const n=Math.max(0,Math.min(1,norm()));
+      const deg=-135+n*270;
+      pointer.style.transform=`translateX(-50%) rotate(${deg}deg)`;
     }
 
-    function start(y, pointerId=null) {
-      dragging = true;
-      startY = y;
-      startVal = type === "root" ? rootFreq : ratio;
-      activePointer = pointerId;
-      knob.style.cursor = "grabbing";
-      unlock();
+    function begin(y){
+      unlockAudio();
+      dragging=true;
+      startY=y;
+      startVal=type==="root"?rootFreq:ratio;
     }
 
-    function move(y) {
-      if (!dragging) return;
-      const dy = startY - y;
-      if (type === "root") {
-        rootFreq = Math.max(64, Math.min(1024, startVal + dy * 1.55));
-      } else {
-        const raw = Math.max(.8, Math.min(2.2, startVal + dy * .0046));
-        ratio = magnetic(raw);
+    function move(y){
+      if(!dragging) return;
+      const dy=startY-y;
+      if(type==="root"){
+        rootFreq=Math.max(64,Math.min(1024,startVal+dy*1.55));
+      }else{
+        const raw=Math.max(.8,Math.min(2.2,startVal+dy*.0046));
+        ratio=magnetic(raw);
       }
       visual();
       updateReadouts();
     }
 
-    function end() {
-      dragging = false;
-      activePointer = null;
-      knob.style.cursor = "grab";
-    }
+    function finish(){dragging=false}
 
-    if (window.PointerEvent) {
-      knob.addEventListener("pointerdown", e => {
-        e.preventDefault();
-        start(e.clientY, e.pointerId);
-        try { knob.setPointerCapture(e.pointerId); } catch(err) {}
-      }, { passive:false });
-
-      knob.addEventListener("pointermove", e => {
-        if (activePointer !== null && e.pointerId !== activePointer) return;
-        if (dragging) e.preventDefault();
-        move(e.clientY);
-      }, { passive:false });
-
-      ["pointerup","pointercancel","lostpointercapture"].forEach(evt =>
-        knob.addEventListener(evt, end, { passive:true })
-      );
-    }
-
-    // Explicit touch fallback for iOS WebViews / older Safari.
-    knob.addEventListener("touchstart", e => {
-      if (!e.touches.length) return;
+    knob.addEventListener("pointerdown",e=>{
       e.preventDefault();
-      start(e.touches[0].clientY);
-    }, { passive:false });
+      begin(e.clientY);
+      try{knob.setPointerCapture(e.pointerId)}catch(err){}
+    },{passive:false});
+    knob.addEventListener("pointermove",e=>{
+      if(!dragging)return;
+      e.preventDefault();
+      move(e.clientY);
+    },{passive:false});
+    knob.addEventListener("pointerup",finish);
+    knob.addEventListener("pointercancel",finish);
 
-    knob.addEventListener("touchmove", e => {
-      if (!dragging || !e.touches.length) return;
+    knob.addEventListener("touchstart",e=>{
+      if(!e.touches.length)return;
+      e.preventDefault();
+      begin(e.touches[0].clientY);
+    },{passive:false});
+    knob.addEventListener("touchmove",e=>{
+      if(!dragging||!e.touches.length)return;
       e.preventDefault();
       move(e.touches[0].clientY);
-    }, { passive:false });
-
-    knob.addEventListener("touchend", end, { passive:true });
-    knob.addEventListener("touchcancel", end, { passive:true });
+    },{passive:false});
+    knob.addEventListener("touchend",finish);
+    knob.addEventListener("touchcancel",finish);
 
     visual();
   }
 
-  bindKnob("rootKnob", "root");
-  bindKnob("harmonyKnob", "harmony");
+  bindKnob("rootKnob","root");
+  bindKnob("harmonyKnob","harmony");
 
-  document.getElementById("leftBtn").addEventListener("click", strikeLeft);
-  document.getElementById("rightBtn").addEventListener("click", strikeRight);
-  document.getElementById("bothBtn").addEventListener("click", strikeBoth);
+  document.getElementById("leftBtn").addEventListener("click",strikeLeft);
+  document.getElementById("rightBtn").addEventListener("click",strikeRight);
+  document.getElementById("bothBtn").addEventListener("click",strikeBoth);
 
-  wellsSelect.addEventListener("change", () => {
-    ratio = magnetic(ratio);
+  wellsSelect.addEventListener("change",()=>{
+    ratio=magnetic(ratio);
     updateReadouts();
-  });
-
-  // Prevent accidental page scrolling while manipulating knobs.
-  document.querySelectorAll(".knob").forEach(k => {
-    k.addEventListener("gesturestart", e => e.preventDefault(), { passive:false });
   });
 
   updateReadouts();
