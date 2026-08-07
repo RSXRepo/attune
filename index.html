@@ -4,7 +4,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-<title>Attune v0.5.5</title>
+<title>Attune v0.5.7</title>
 <style>
   :root{
     --gold:#d7b979;
@@ -226,6 +226,8 @@
   }
   button{
     min-height:74px;
+    touch-action:manipulation;
+    -webkit-tap-highlight-color:rgba(0,0,0,0);
     border-radius:16px;
     border:1px solid rgba(215,185,121,.38);
     background:linear-gradient(180deg, #0b1119, #070b11);
@@ -297,6 +299,42 @@
     .controls{grid-template-columns:1fr}
     .wells{grid-column:auto}
   }
+
+  .stl-panel{
+    margin:16px auto 8px;
+    width:min(760px,100%);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:14px;
+    flex-wrap:wrap;
+  }
+  .stl-download{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    min-height:58px;
+    padding:0 24px;
+    border-radius:16px;
+    border:1px solid rgba(215,185,121,.45);
+    background:linear-gradient(180deg,#121922,#080c12);
+    color:#e7c36f;
+    font-size:clamp(13px,1vw,17px);
+    text-transform:uppercase;
+    letter-spacing:.10em;
+    text-decoration:none;
+    cursor:pointer;
+    touch-action:manipulation;
+  }
+  .stl-download:hover{filter:brightness(1.08)}
+  .stl-download:active{transform:translateY(1px)}
+  .stl-note{
+    color:#a89a83;
+    font-size:12px;
+    letter-spacing:.05em;
+    text-align:center;
+  }
+
 </style>
 </head>
 <body>
@@ -304,7 +342,7 @@
   <header>
     <h1>ATTUNE</h1>
     <div class="tagline">RESONATE • GROUND • CONNECT</div>
-    <div id="audioStatus" style="margin-top:10px;font-size:12px;letter-spacing:.08em;color:#bfa77d;opacity:.72">Tap anywhere once to enable audio</div>
+    <div id="audioStatus" style="margin-top:10px;font-size:12px;letter-spacing:.08em;color:#bfa77d;opacity:.72">Audio: waiting for first strike</div>
   </header>
 
   <section class="instrument">
@@ -390,10 +428,10 @@
   </div>
 
   <section class="controls">
-    <button id="leftBtn">Strike Left</button>
-    <button id="bothBtn">Strike Both</button>
+    <button type="button" id="leftBtn">Strike Left</button>
+    <button type="button" id="bothBtn">Strike Both</button>
     <div class="wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
-    <button id="rightBtn">Strike Right</button>
+    <button type="button" id="rightBtn">Strike Right</button>
     <div class="wells">
       <label for="wellsSelect">Consonant Wells</label>
       <select id="wellsSelect">
@@ -405,264 +443,385 @@
     </div>
   </section>
 
+  <div class="stl-panel">
+    <a class="stl-download"
+       href="./QFOG_v0.1_256_384.stl"
+       download="QFOG_v0.1_256_384.stl"
+       aria-label="Download QFOG 256 384 hertz STL">
+      Download STL
+    </a>
+    <div class="stl-note">QFOG v0.1 • 256 Hz / 384 Hz calibration prototype</div>
+  </div>
 
 </div>
 
 <script>
 (() => {
-  let ctx = null;
-  let rootFreq = 256;
-  let ratio = 1.5;
-  const duration = 24;
-  let leftNode = null, rightNode = null;
+  "use strict";
 
-  const intervals = [
-    ["Unison",1],["Minor Third",6/5],["Major Third",5/4],
-    ["Perfect Fourth",4/3],["Perfect Fifth",3/2],
-    ["Major Sixth",5/3],["Octave",2]
+  var ctx = null;
+  var rootFreq = 256;
+  var ratio = 1.5;
+  var duration = 24;
+  var leftNode = null;
+  var rightNode = null;
+  var pendingStrike = false;
+
+  var intervals = [
+    ["Unison",1],
+    ["Minor Third",6/5],
+    ["Major Third",5/4],
+    ["Perfect Fourth",4/3],
+    ["Perfect Fifth",3/2],
+    ["Major Sixth",5/3],
+    ["Octave",2]
   ];
 
-  const rootReadout = document.getElementById("rootReadout");
-  const harmReadout = document.getElementById("harmReadout");
-  const ratioReadout = document.getElementById("ratioReadout");
-  const intervalName = document.getElementById("intervalName");
-  const intervalCents = document.getElementById("intervalCents");
-  const wellsSelect = document.getElementById("wellsSelect");
-  const audioStatus = document.getElementById("audioStatus");
-  const leftForkVisual = document.getElementById("leftForkVisual");
-  const rightForkVisual = document.getElementById("rightForkVisual");
+  var rootReadout = document.getElementById("rootReadout");
+  var harmReadout = document.getElementById("harmReadout");
+  var ratioReadout = document.getElementById("ratioReadout");
+  var intervalName = document.getElementById("intervalName");
+  var intervalCents = document.getElementById("intervalCents");
+  var wellsSelect = document.getElementById("wellsSelect");
+  var audioStatus = document.getElementById("audioStatus");
+  var leftForkVisual = document.getElementById("leftForkVisual");
+  var rightForkVisual = document.getElementById("rightForkVisual");
 
-  function audioContextNow(){
-    if(!ctx){
-      const AC = window.AudioContext || window.webkitAudioContext;
-      if(!AC){
-        if(audioStatus) audioStatus.textContent = "Audio unavailable in this browser";
-        return null;
-      }
+  function setStatus(text) {
+    if (audioStatus) audioStatus.textContent = text;
+  }
+
+  function getAudioContext() {
+    if (ctx) return ctx;
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) {
+      setStatus("Audio unavailable in this browser");
+      return null;
+    }
+
+    try {
       ctx = new AC();
+      ctx.onstatechange = function() {
+        setStatus("Audio: " + ctx.state);
+      };
+      setStatus("Audio: " + ctx.state);
+      return ctx;
+    } catch (err) {
+      setStatus("Audio could not start");
+      return null;
     }
-    if(ctx.state === "suspended"){
-      ctx.resume().catch(()=>{});
-    }
-    return ctx;
   }
 
-  function unlockAudio(){
-    const c = audioContextNow();
-    if(!c) return;
-    try{
-      const osc = c.createOscillator();
-      const gain = c.createGain();
-      gain.gain.value = 0.00001;
-      osc.connect(gain).connect(c.destination);
-      osc.start(c.currentTime);
-      osc.stop(c.currentTime + 0.02);
-      if(audioStatus) audioStatus.textContent = "Audio ready";
-    }catch(e){}
+  /*
+    Mobile Safari/WebKit is strict: resume() must be initiated by a real
+    user gesture. We therefore call this directly from pointerdown/touchstart,
+    and we only create/start audible oscillators once the context is running.
+  */
+  function withRunningAudio(callback) {
+    var c = getAudioContext();
+    if (!c || pendingStrike) return;
+
+    if (c.state === "running") {
+      callback(c);
+      return;
+    }
+
+    pendingStrike = true;
+    setStatus("Audio: enabling…");
+
+    var resumeResult;
+    try {
+      resumeResult = c.resume();
+    } catch (err) {
+      pendingStrike = false;
+      setStatus("Audio blocked — tap Strike again");
+      return;
+    }
+
+    Promise.resolve(resumeResult).then(function() {
+      pendingStrike = false;
+
+      if (c.state === "running") {
+        setStatus("Audio: running");
+        callback(c);
+      } else {
+        setStatus("Audio blocked — tap Strike again");
+      }
+    }).catch(function() {
+      pendingStrike = false;
+      setStatus("Audio blocked — tap Strike again");
+    });
   }
 
-  // iOS needs audio to be unlocked directly from a user gesture.
-  ["touchend","pointerup","click"].forEach(evt=>{
-    document.addEventListener(evt, unlockAudio, {once:true, passive:true});
-  });
-
-  function makeFork(freq, pan){
-    const c = audioContextNow();
-    if(!c) return null;
-
-    const now = c.currentTime;
-    const fundamental = c.createOscillator();
-    const partial = c.createOscillator();
-    const g1 = c.createGain();
-    const g2 = c.createGain();
+  function makeFork(c, freq, pan) {
+    var now = c.currentTime;
+    var fundamental = c.createOscillator();
+    var partial = c.createOscillator();
+    var g1 = c.createGain();
+    var g2 = c.createGain();
+    var output = c.destination;
 
     fundamental.type = "sine";
     partial.type = "sine";
     fundamental.frequency.setValueAtTime(freq, now);
     partial.frequency.setValueAtTime(freq * 2.76, now);
 
+    // Gentle attack avoids clicks; nonzero values keep exponential ramps valid.
     g1.gain.setValueAtTime(0.0001, now);
-    g1.gain.exponentialRampToValueAtTime(0.5, now + 0.012);
+    g1.gain.exponentialRampToValueAtTime(0.46, now + 0.018);
     g1.gain.exponentialRampToValueAtTime(0.0001, now + duration);
 
-    g2.gain.setValueAtTime(0.075, now);
+    g2.gain.setValueAtTime(0.060, now);
     g2.gain.exponentialRampToValueAtTime(0.00001, now + 0.30);
 
-    if(typeof c.createStereoPanner === "function"){
-      const p = c.createStereoPanner();
-      p.pan.value = pan;
+    if (typeof c.createStereoPanner === "function") {
+      var panner = c.createStereoPanner();
+      try { panner.pan.setValueAtTime(pan, now); } catch (e) { panner.pan.value = pan; }
       fundamental.connect(g1);
       partial.connect(g2);
-      g1.connect(p);
-      g2.connect(p);
-      p.connect(c.destination);
-    }else{
-      fundamental.connect(g1).connect(c.destination);
-      partial.connect(g2).connect(c.destination);
+      g1.connect(panner);
+      g2.connect(panner);
+      panner.connect(output);
+    } else {
+      fundamental.connect(g1);
+      partial.connect(g2);
+      g1.connect(output);
+      g2.connect(output);
     }
 
     fundamental.start(now);
     partial.start(now);
-    fundamental.stop(now + duration + 0.1);
-    partial.stop(now + 0.34);
+    fundamental.stop(now + duration + 0.15);
+    partial.stop(now + 0.36);
 
-    return {fundamental, partial};
+    return {
+      fundamental: fundamental,
+      partial: partial
+    };
   }
 
-  function stopNode(node){
-    if(!node) return;
-    try{node.fundamental.stop()}catch(e){}
-    try{node.partial.stop()}catch(e){}
+  function stopNode(node) {
+    if (!node) return;
+    try { node.fundamental.stop(); } catch (e) {}
+    try { node.partial.stop(); } catch (e) {}
   }
 
-  function strikeLeft(){
-    unlockAudio();
-    stopNode(leftNode);
-    leftNode = makeFork(rootFreq,-0.72);
+  function strikeLeft() {
+    withRunningAudio(function(c) {
+      stopNode(leftNode);
+      leftNode = makeFork(c, rootFreq, -0.72);
+    });
   }
 
-  function strikeRight(){
-    unlockAudio();
-    stopNode(rightNode);
-    rightNode = makeFork(rootFreq*ratio,0.72);
+  function strikeRight() {
+    withRunningAudio(function(c) {
+      stopNode(rightNode);
+      rightNode = makeFork(c, rootFreq * ratio, 0.72);
+    });
   }
 
-  function strikeBoth(){
-    unlockAudio();
-    stopNode(leftNode); stopNode(rightNode);
-    leftNode = makeFork(rootFreq,-0.72);
-    rightNode = makeFork(rootFreq*ratio,0.72);
+  function strikeBoth() {
+    withRunningAudio(function(c) {
+      stopNode(leftNode);
+      stopNode(rightNode);
+      leftNode = makeFork(c, rootFreq, -0.72);
+      rightNode = makeFork(c, rootFreq * ratio, 0.72);
+    });
   }
 
-  function nearestRatio(r){
-    let best=intervals[0], dist=Infinity;
-    for(const pair of intervals){
-      const d=Math.abs(Math.log(r/pair[1]));
-      if(d<dist){dist=d;best=pair}
+  function nearestRatio(r) {
+    var best = intervals[0];
+    var dist = Infinity;
+    var i;
+
+    for (i = 0; i < intervals.length; i++) {
+      var d = Math.abs(Math.log(r / intervals[i][1]));
+      if (d < dist) {
+        dist = d;
+        best = intervals[i];
+      }
     }
-    return {name:best[0],value:best[1],dist};
+
+    return { name: best[0], value: best[1], dist: dist };
   }
 
-  function magnetic(raw){
-    const mode=wellsSelect.selectedIndex;
-    if(mode===0) return raw;
-    const strength=[0,.14,.38,.66][mode];
-    const width=[0,11,14,18][mode];
-    const n=nearestRatio(raw);
-    const pull=Math.max(0,1-n.dist*width);
-    return raw+(n.value-raw)*pull*strength;
+  function magnetic(raw) {
+    var mode = wellsSelect.selectedIndex;
+    if (mode === 0) return raw;
+
+    var strength = [0, 0.14, 0.38, 0.66][mode];
+    var width = [0, 11, 14, 18][mode];
+    var n = nearestRatio(raw);
+    var pull = Math.max(0, 1 - n.dist * width);
+
+    return raw + (n.value - raw) * pull * strength;
   }
 
-  function updateForkGeometry(){
-    const harmony=rootFreq*ratio;
-    const leftScale=Math.max(.70,Math.min(1.45,Math.sqrt(256/rootFreq)));
-    const rightScale=Math.max(.70,Math.min(1.45,Math.sqrt(384/harmony)));
-    leftForkVisual.setAttribute("transform",`translate(425 0) scale(${leftScale.toFixed(4)} 1) translate(-425 0)`);
-    rightForkVisual.setAttribute("transform",`translate(495 0) scale(${rightScale.toFixed(4)} 1) translate(-495 0)`);
+  function updateForkGeometry() {
+    var harmony = rootFreq * ratio;
+    var leftScale = Math.max(0.70, Math.min(1.45, Math.sqrt(256 / rootFreq)));
+    var rightScale = Math.max(0.70, Math.min(1.45, Math.sqrt(384 / harmony)));
+
+    leftForkVisual.setAttribute(
+      "transform",
+      "translate(425 0) scale(" + leftScale.toFixed(4) + " 1) translate(-425 0)"
+    );
+
+    rightForkVisual.setAttribute(
+      "transform",
+      "translate(495 0) scale(" + rightScale.toFixed(4) + " 1) translate(-495 0)"
+    );
   }
 
-  function updateReadouts(){
-    const harmony=rootFreq*ratio;
-    rootReadout.innerHTML=rootFreq.toFixed(1)+"<small>Hz</small>";
-    harmReadout.innerHTML=harmony.toFixed(1)+"<small>Hz</small>";
-    ratioReadout.textContent=ratio.toFixed(3);
+  function updateReadouts() {
+    var harmony = rootFreq * ratio;
 
-    const n=nearestRatio(ratio);
-    const cents=1200*Math.log2(ratio/n.value);
-    intervalName.textContent=n.name;
-    intervalCents.textContent=(cents>=0?"+":"")+cents.toFixed(1)+" cents";
+    rootReadout.innerHTML = rootFreq.toFixed(1) + "<small>Hz</small>";
+    harmReadout.innerHTML = harmony.toFixed(1) + "<small>Hz</small>";
+    ratioReadout.textContent = ratio.toFixed(3);
+
+    var n = nearestRatio(ratio);
+    var cents = 1200 * (Math.log(ratio / n.value) / Math.log(2));
+
+    intervalName.textContent = n.name;
+    intervalCents.textContent = (cents >= 0 ? "+" : "") + cents.toFixed(1) + " cents";
 
     updateForkGeometry();
 
-    if(ctx && ctx.state==="running"){
-      const now=ctx.currentTime;
-      if(leftNode?.fundamental){
-        try{leftNode.fundamental.frequency.setTargetAtTime(Math.max(20,rootFreq),now,.025)}catch(e){}
+    if (ctx && ctx.state === "running") {
+      var now = ctx.currentTime;
+
+      if (leftNode && leftNode.fundamental) {
+        try {
+          leftNode.fundamental.frequency.setTargetAtTime(Math.max(20, rootFreq), now, 0.025);
+        } catch (e) {}
       }
-      if(rightNode?.fundamental){
-        try{rightNode.fundamental.frequency.setTargetAtTime(Math.max(20,harmony),now,.025)}catch(e){}
+
+      if (rightNode && rightNode.fundamental) {
+        try {
+          rightNode.fundamental.frequency.setTargetAtTime(Math.max(20, harmony), now, 0.025);
+        } catch (e) {}
       }
     }
   }
 
-  function bindKnob(id,type){
-    const knob=document.getElementById(id);
-    const pointer=knob.querySelector(".pointer");
-    let dragging=false,startY=0,startVal=0;
+  function bindKnob(id, type) {
+    var knob = document.getElementById(id);
+    var pointer = knob.querySelector(".pointer");
+    var dragging = false;
+    var startY = 0;
+    var startVal = 0;
 
-    function norm(){
-      return type==="root"
-        ? (rootFreq-64)/(1024-64)
-        : (ratio-.8)/(2.2-.8);
+    function norm() {
+      if (type === "root") return (rootFreq - 64) / (1024 - 64);
+      return (ratio - 0.8) / (2.2 - 0.8);
     }
 
-    function visual(){
-      const n=Math.max(0,Math.min(1,norm()));
-      const deg=-135+n*270;
-      pointer.style.transform=`translateX(-50%) rotate(${deg}deg)`;
+    function visual() {
+      var n = Math.max(0, Math.min(1, norm()));
+      var deg = -135 + n * 270;
+      pointer.style.transform = "translateX(-50%) rotate(" + deg + "deg)";
     }
 
-    function begin(y){
-      unlockAudio();
-      dragging=true;
-      startY=y;
-      startVal=type==="root"?rootFreq:ratio;
+    function begin(y) {
+      dragging = true;
+      startY = y;
+      startVal = type === "root" ? rootFreq : ratio;
     }
 
-    function move(y){
-      if(!dragging) return;
-      const dy=startY-y;
-      if(type==="root"){
-        rootFreq=Math.max(64,Math.min(1024,startVal+dy*1.55));
-      }else{
-        const raw=Math.max(.8,Math.min(2.2,startVal+dy*.0046));
-        ratio=magnetic(raw);
+    function move(y) {
+      if (!dragging) return;
+
+      var dy = startY - y;
+
+      if (type === "root") {
+        rootFreq = Math.max(64, Math.min(1024, startVal + dy * 1.55));
+      } else {
+        var raw = Math.max(0.8, Math.min(2.2, startVal + dy * 0.0046));
+        ratio = magnetic(raw);
       }
+
       visual();
       updateReadouts();
     }
 
-    function finish(){dragging=false}
+    function finish() {
+      dragging = false;
+    }
 
-    knob.addEventListener("pointerdown",e=>{
-      e.preventDefault();
-      begin(e.clientY);
-      try{knob.setPointerCapture(e.pointerId)}catch(err){}
-    },{passive:false});
-    knob.addEventListener("pointermove",e=>{
-      if(!dragging)return;
-      e.preventDefault();
-      move(e.clientY);
-    },{passive:false});
-    knob.addEventListener("pointerup",finish);
-    knob.addEventListener("pointercancel",finish);
+    if (window.PointerEvent) {
+      knob.addEventListener("pointerdown", function(e) {
+        e.preventDefault();
+        begin(e.clientY);
+        try { knob.setPointerCapture(e.pointerId); } catch (err) {}
+      }, { passive: false });
 
-    knob.addEventListener("touchstart",e=>{
-      if(!e.touches.length)return;
-      e.preventDefault();
-      begin(e.touches[0].clientY);
-    },{passive:false});
-    knob.addEventListener("touchmove",e=>{
-      if(!dragging||!e.touches.length)return;
-      e.preventDefault();
-      move(e.touches[0].clientY);
-    },{passive:false});
-    knob.addEventListener("touchend",finish);
-    knob.addEventListener("touchcancel",finish);
+      knob.addEventListener("pointermove", function(e) {
+        if (!dragging) return;
+        e.preventDefault();
+        move(e.clientY);
+      }, { passive: false });
+
+      knob.addEventListener("pointerup", finish, { passive: true });
+      knob.addEventListener("pointercancel", finish, { passive: true });
+    } else {
+      knob.addEventListener("touchstart", function(e) {
+        if (!e.touches.length) return;
+        e.preventDefault();
+        begin(e.touches[0].clientY);
+      }, { passive: false });
+
+      knob.addEventListener("touchmove", function(e) {
+        if (!dragging || !e.touches.length) return;
+        e.preventDefault();
+        move(e.touches[0].clientY);
+      }, { passive: false });
+
+      knob.addEventListener("touchend", finish, { passive: true });
+      knob.addEventListener("touchcancel", finish, { passive: true });
+    }
 
     visual();
   }
 
-  bindKnob("rootKnob","root");
-  bindKnob("harmonyKnob","harmony");
+  function bindStrikeButton(button, action) {
+    var fired = false;
 
-  document.getElementById("leftBtn").addEventListener("click",strikeLeft);
-  document.getElementById("rightBtn").addEventListener("click",strikeRight);
-  document.getElementById("bothBtn").addEventListener("click",strikeBoth);
+    function fire(e) {
+      if (e) e.preventDefault();
 
-  wellsSelect.addEventListener("change",()=>{
-    ratio=magnetic(ratio);
+      // Prevent pointerdown + synthetic click from striking twice.
+      if (fired) return;
+      fired = true;
+      action();
+
+      setTimeout(function() { fired = false; }, 180);
+    }
+
+    if (window.PointerEvent) {
+      button.addEventListener("pointerdown", fire, { passive: false });
+    } else {
+      button.addEventListener("touchstart", fire, { passive: false });
+      button.addEventListener("click", fire, { passive: false });
+    }
+  }
+
+  bindKnob("rootKnob", "root");
+  bindKnob("harmonyKnob", "harmony");
+
+  bindStrikeButton(document.getElementById("leftBtn"), strikeLeft);
+  bindStrikeButton(document.getElementById("bothBtn"), strikeBoth);
+  bindStrikeButton(document.getElementById("rightBtn"), strikeRight);
+
+  wellsSelect.addEventListener("change", function() {
+    ratio = magnetic(ratio);
     updateReadouts();
+  });
+
+  // If iOS suspends audio when the tab/background changes, the next strike
+  // will resume it through withRunningAudio().
+  window.addEventListener("pageshow", function() {
+    if (ctx) setStatus("Audio: " + ctx.state);
   });
 
   updateReadouts();
