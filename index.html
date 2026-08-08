@@ -4,7 +4,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-<title>Attune v0.6.0</title>
+<title>Attune v0.6.1</title>
 <style>
   :root{
     --gold:#d7b979;
@@ -267,6 +267,13 @@
     font-size:21px;
     outline:none;
   }
+  .phase-hint{
+    display:inline-block;
+    margin-top:12px;
+    color:#c9ab7a;
+    font-size:.88em;
+    letter-spacing:.035em;
+  }
   .instructions{
     text-align:center;
     color:#e6dccd;
@@ -475,7 +482,8 @@
 
   <div class="instructions">
     Strike the left fork and find a tone that resonates with you.<br>
-    Then strike the right fork and explore a harmony that resonates with the left.
+    Then strike the right fork and explore a harmony that resonates with it.<br>
+    <span class="phase-hint">Play close to unison to hear the sonic waves phasing through each other.</span>
   </div>
 
   <section class="controls">
@@ -496,7 +504,7 @@
     </div>
 
     <button type="button" class="stl-download" id="stlBtn">
-      Generate &amp; Download STL
+      Generate &amp; Purchase
     </button>
 
     <div class="stl-note" id="stlNote">Current dials • 256.0 Hz / 384.0 Hz</div>
@@ -1181,7 +1189,7 @@
 
     if(stlBtn){
       stlBtn.disabled = true;
-      stlBtn.textContent = "Generating STL…";
+      stlBtn.textContent = "Generating…";
     }
 
     if(stlNote){
@@ -1224,7 +1232,7 @@
       }finally{
         if(stlBtn){
           stlBtn.disabled=false;
-          stlBtn.textContent="Generate & Download STL";
+          stlBtn.textContent="Generate & Purchase";
         }
       }
     },30);
