@@ -4,7 +4,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-<title>Attune v0.6.1</title>
+<title>Attune v0.6.2</title>
 <style>
   :root{
     --gold:#d7b979;
@@ -483,7 +483,7 @@
   <div class="instructions">
     Strike the left fork and find a tone that resonates with you.<br>
     Then strike the right fork and explore a harmony that resonates with it.<br>
-    <span class="phase-hint">Play close to unison to hear the sonic waves phasing through each other.</span>
+    <span class="phase-hint">Play close to unison to hear the sound waves phasing through each other.</span>
   </div>
 
   <section class="controls">
@@ -909,82 +909,80 @@
   }
 
 
-  // Simple stencil/vector characters for through-cut frequency markings.
-  // Designed specifically to survive the voxel STL generator without a font dependency.
-  var sevenSeg = {
-    "0":["a","b","c","d","e","f"],
-    "1":["b","c"],
-    "2":["a","b","g","e","d"],
-    "3":["a","b","c","d","g"],
-    "4":["f","g","b","c"],
-    "5":["a","f","g","c","d"],
-    "6":["a","f","g","e","c","d"],
-    "7":["a","b","c"],
-    "8":["a","b","c","d","e","f","g"],
-    "9":["a","b","c","d","f","g"]
+  // v0.6.2: larger, cleaner block/stencil frequency markings.
+  // Still font-independent and cut through the upper tine, but deliberately
+  // sized for the 1.25 mm voxel grid so the digits remain readable in the STL.
+  var glyphs = {
+    "0":["11111","10001","10001","10001","10001","10001","11111"],
+    "1":["00100","01100","00100","00100","00100","00100","01110"],
+    "2":["11111","00001","00001","11111","10000","10000","11111"],
+    "3":["11111","00001","00001","01111","00001","00001","11111"],
+    "4":["10001","10001","10001","11111","00001","00001","00001"],
+    "5":["11111","10000","10000","11111","00001","00001","11111"],
+    "6":["11111","10000","10000","11111","10001","10001","11111"],
+    "7":["11111","00001","00010","00100","01000","01000","01000"],
+    "8":["11111","10001","10001","11111","10001","10001","11111"],
+    "9":["11111","10001","10001","11111","00001","00001","11111"],
+    "H":["10001","10001","10001","11111","10001","10001","10001"],
+    "Z":["11111","00001","00010","00100","01000","10000","11111"]
   };
 
-  function inRect(px,py,x0,x1,y0,y1){
-    return px>=x0 && px<=x1 && py>=y0 && py<=y1;
-  }
+  function insideBlockGlyph(px,py,ch,x0,y0,pixel){
+    var rows=glyphs[ch];
+    if(!rows) return false;
 
-  function insideStencilChar(px,py,ch,x0,y0,w,h,t){
-    var xm=x0+w/2;
-    var ym=y0+h/2;
+    var cols=rows[0].length;
+    var h=rows.length*pixel;
 
-    if(sevenSeg[ch]){
-      var segs=sevenSeg[ch];
-      for(var i=0;i<segs.length;i++){
-        var s=segs[i];
-        if(s==="a" && inRect(px,py,x0+t,x0+w-t,y0+h-t,y0+h)) return true;
-        if(s==="g" && inRect(px,py,x0+t,x0+w-t,ym-t/2,ym+t/2)) return true;
-        if(s==="d" && inRect(px,py,x0+t,x0+w-t,y0,y0+t)) return true;
-        if(s==="f" && inRect(px,py,x0,x0+t,ym+t/2,y0+h-t)) return true;
-        if(s==="b" && inRect(px,py,x0+w-t,x0+w,ym+t/2,y0+h-t)) return true;
-        if(s==="e" && inRect(px,py,x0,x0+t,y0+t,ym-t/2)) return true;
-        if(s==="c" && inRect(px,py,x0+w-t,x0+w,y0+t,ym-t/2)) return true;
-      }
-      return false;
-    }
+    if(px<x0 || px>x0+cols*pixel || py<y0 || py>y0+h) return false;
 
-    if(ch==="H"){
-      return inRect(px,py,x0,x0+t,y0,y0+h) ||
-             inRect(px,py,x0+w-t,x0+w,y0,y0+h) ||
-             inRect(px,py,x0,x0+w,ym-t/2,ym+t/2);
-    }
+    var col=Math.floor((px-x0)/pixel);
+    var rowFromBottom=Math.floor((py-y0)/pixel);
+    if(col<0 || col>=cols || rowFromBottom<0 || rowFromBottom>=rows.length) return false;
 
-    if(ch==="Z"){
-      if(inRect(px,py,x0,x0+w,y0+h-t,y0+h) ||
-         inRect(px,py,x0,x0+w,y0,y0+t)) return true;
-      // diagonal from upper-right to lower-left
-      var u=(px-x0)/w;
-      var target=y0+h*(1-u);
-      return px>=x0 && px<=x0+w && Math.abs(py-target)<=t*.65;
-    }
-
-    return false;
+    // Glyph strings are written top-to-bottom.
+    var row=rows.length-1-rowFromBottom;
+    return rows[row].charAt(col)==="1";
   }
 
   function insideFrequencyCut(x,y,side,freq,tineLen){
+    // Keep the actual generated value simple and unmistakable: e.g. 256HZ.
     var text=String(Math.round(freq))+"HZ";
-    var charW=3.2;
-    var charH=5.0;
-    var gap=.75;
-    var stroke=.72;
+
+    // One glyph pixel = one STL voxel. This avoids the previous sub-voxel
+    // seven-segment strokes that became broken/ambiguous after sampling.
+    var pixel=1.25;
+    var charW=5*pixel;
+    var charH=7*pixel;
+    var gap=pixel;
     var total=text.length*charW+(text.length-1)*gap;
 
-    // Place the marking around the middle of the upper tine.
     var hubR=21, shoulder=16;
-    var tineBase=hubR+shoulder;
-    var centerX=side*(tineBase+tineLen*.52);
-    var xStart=centerX-total/2;
+    var inner=hubR+shoulder;
+    var outer=inner+tineLen;
+
+    // Centre on the upper tine and clamp it so the whole label stays on metal.
+    var desired=Math.min(total, Math.max(0, tineLen-5));
+    if(desired<total){
+      // Extremely short/high-frequency tines: scale glyphs down uniformly,
+      // but never below 1 mm so the cut remains printable/readable.
+      pixel=Math.max(1.0, desired/(text.length*5+(text.length-1)));
+      charW=5*pixel;
+      charH=7*pixel;
+      gap=pixel;
+      total=text.length*charW+(text.length-1)*gap;
+    }
+
+    var absCenter=inner+tineLen*.56;
+    var absStart=Math.max(inner+2.5, Math.min(outer-total-2.5, absCenter-total/2));
+    var xStart=side<0 ? -(absStart+total) : absStart;
+
+    // Upper tine centre is y=10; centre the taller label there.
     var yStart=10-charH/2;
 
     for(var i=0;i<text.length;i++){
       var cx=xStart+i*(charW+gap);
-      if(insideStencilChar(x,y,text.charAt(i),cx,yStart,charW,charH,stroke)){
-        return true;
-      }
+      if(insideBlockGlyph(x,y,text.charAt(i),cx,yStart,pixel)) return true;
     }
     return false;
   }
