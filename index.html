@@ -4,16 +4,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-<title>Attune v0.6.2</title>
+<title>Attune v0.7.0 Gunmetal</title>
 <style>
   :root{
-    --gold:#d7b979;
-    --gold2:#b78e4f;
-    --cream:#eadfce;
-    --bg1:#050c15;
-    --bg2:#071321;
-    --panel:#0a0f16;
-    --line:rgba(215,185,121,.36);
+    --gold:#6f7881;
+    --gold2:#353c43;
+    --cream:#e6e8e9;
+    --bg1:#050709;
+    --bg2:#0a0d10;
+    --panel:#090c0f;
+    --line:rgba(126,136,145,.38);
   }
   *{box-sizing:border-box}
   html,body{
@@ -38,11 +38,11 @@
     font-size: clamp(52px, 6.4vw, 110px);
     font-weight:500;
     letter-spacing:.18em;
-    color:#e1c48f;
+    color:#aeb5bb;
   }
   .tagline{
     margin-top:8px;
-    color:#d3b37a;
+    color:#7e878f;
     letter-spacing:.28em;
     text-transform:uppercase;
     font-size:clamp(14px,1.3vw,24px);
@@ -59,7 +59,7 @@
     display:flex; flex-direction:column; align-items:center; justify-content:center;
   }
   .side-title{
-    color:#ddc28d;
+    color:#aeb4b9;
     text-transform:uppercase;
     letter-spacing:.2em;
     font-size:clamp(18px,1.35vw,26px);
@@ -93,7 +93,7 @@
     box-shadow:
       0 14px 26px rgba(0,0,0,.44),
       inset 0 1px 0 rgba(255,255,255,.05),
-      0 0 0 1px rgba(215,185,121,.16);
+      0 0 0 1px rgba(119,129,138,.16);
     border-radius:50%;
   }
   .eye{
@@ -107,7 +107,7 @@
     box-shadow:
       inset 0 2px 8px rgba(255,255,255,.05),
       inset 0 -14px 26px rgba(0,0,0,.65),
-      0 0 0 1px rgba(238,205,139,.20),
+      0 0 0 1px rgba(135,145,153,.20),
       0 9px 18px rgba(0,0,0,.48);
   }
   .eye::before{
@@ -133,7 +133,7 @@
     left:44.5%;
     top:44.5%;
     border-radius:50%;
-    background:radial-gradient(circle at 35% 30%, #d7c08b, #76572e 44%, #1b160f 75%);
+    background:radial-gradient(circle at 35% 30%, #a5adb4, #4c545b 44%, #1b160f 75%);
     box-shadow:0 1px 4px rgba(0,0,0,.75), inset 0 1px 1px rgba(255,255,255,.25);
   }
   .iris,.pupil,.gloss{display:none}
@@ -144,8 +144,8 @@
     width:4px;
     height:42px;
     border-radius:4px;
-    background:linear-gradient(180deg,#fff1be 0%,#e6bd68 55%,#9b6f31 100%);
-    box-shadow:0 0 7px rgba(239,199,119,.26);
+    background:linear-gradient(180deg,#d7dadd 0%,#747d85 55%,#30363c 100%);
+    box-shadow:0 0 7px rgba(126,136,145,.26);
     transform:translateX(-50%) rotate(0deg);
     transform-origin:50% calc(var(--size) / 2 - 22px);
     z-index:6;
@@ -153,7 +153,7 @@
 
   .freq{
     margin-top:16px;
-    color:#e0c089;
+    color:#b7bec4;
     text-align:center;
     line-height:1;
     font-size:clamp(28px,3.1vw,48px);
@@ -162,7 +162,7 @@
     display:block;
     margin-top:8px;
     font-size:.42em;
-    color:#c9b08a;
+    color:#899198;
     letter-spacing:.08em;
   }
 
@@ -181,11 +181,11 @@
     margin-top:2px;
     font-size:clamp(44px,4.6vw,74px);
     line-height:1;
-    color:#eee2cf;
+    color:#e5e7e8;
   }
   .ratio-label{
     margin-top:4px;
-    color:#c9ab7a;
+    color:#7d868e;
     letter-spacing:.13em;
     text-transform:uppercase;
     font-size:clamp(16px,1.45vw,26px);
@@ -194,18 +194,18 @@
     width:min(560px,78%);
     height:2px;
     margin:18px auto 14px;
-    background:linear-gradient(90deg, transparent, rgba(215,185,121,.14), #efc777, rgba(215,185,121,.14), transparent);
-    box-shadow:0 0 12px rgba(239,199,119,.25);
+    background:linear-gradient(90deg, transparent, rgba(119,129,138,.14), #929ba3, rgba(119,129,138,.14), transparent);
+    box-shadow:0 0 12px rgba(126,136,145,.25);
   }
   .interval-name{
-    color:#e7c36f;
+    color:#aeb6bc;
     letter-spacing:.12em;
     text-transform:uppercase;
     font-size:clamp(24px,2.15vw,39px);
   }
   .cents{
     margin-top:5px;
-    color:#e0bc71;
+    color:#8d969e;
     font-size:clamp(17px,1.4vw,25px);
   }
 
@@ -226,9 +226,9 @@
     touch-action:manipulation;
     -webkit-tap-highlight-color:rgba(0,0,0,0);
     border-radius:16px;
-    border:1px solid rgba(215,185,121,.38);
+    border:1px solid rgba(119,129,138,.38);
     background:linear-gradient(180deg, #0b1119, #070b11);
-    color:#e3c585;
+    color:#b6bdc2;
     font-size:clamp(14px,1.06vw,19px);
     text-transform:uppercase;
     letter-spacing:.08em;
@@ -237,7 +237,7 @@
   button:hover{filter:brightness(1.06)}
   button:active{transform:translateY(1px)}
   .wave{display:flex; align-items:center; justify-content:center; gap:6px}
-  .wave i{display:block; width:3px; border-radius:2px; background:#d4b474}
+  .wave i{display:block; width:3px; border-radius:2px; background:#737c84}
   .wave i:nth-child(1),.wave i:nth-child(7){height:15px}
   .wave i:nth-child(2),.wave i:nth-child(6){height:31px}
   .wave i:nth-child(3),.wave i:nth-child(5){height:49px}
@@ -247,13 +247,13 @@
     min-height:74px;
     padding:9px 14px;
     border-radius:16px;
-    border:1px solid rgba(215,185,121,.38);
+    border:1px solid rgba(119,129,138,.38);
     background:linear-gradient(180deg, #0b1119, #070b11);
     text-align:left;
   }
   .wells label{
     display:block;
-    color:#dcc9a6;
+    color:#aab0b5;
     letter-spacing:.08em;
     text-transform:uppercase;
     font-size:13px;
@@ -263,20 +263,20 @@
     width:100%;
     border:0;
     background:transparent;
-    color:#eedbc0;
+    color:#e0e2e4;
     font-size:21px;
     outline:none;
   }
   .phase-hint{
     display:inline-block;
     margin-top:12px;
-    color:#c9ab7a;
+    color:#7d868e;
     font-size:.88em;
     letter-spacing:.035em;
   }
   .instructions{
     text-align:center;
-    color:#e6dccd;
+    color:#d9dcde;
     font-size:clamp(16px,1.38vw,24px);
     line-height:1.42;
     margin:24px auto 18px;
@@ -320,9 +320,9 @@
     min-height:58px;
     padding:0 24px;
     border-radius:16px;
-    border:1px solid rgba(215,185,121,.45);
+    border:1px solid rgba(119,129,138,.45);
     background:linear-gradient(180deg,#121922,#080c12);
-    color:#e7c36f;
+    color:#aeb6bc;
     font-size:clamp(13px,1vw,17px);
     text-transform:uppercase;
     letter-spacing:.10em;
@@ -334,7 +334,7 @@
   .stl-download:active{transform:translateY(1px)}
   .stl-download{min-width:280px}
   .stl-note{
-    color:#a89a83;
+    color:#7f878e;
     font-size:12px;
     letter-spacing:.05em;
     text-align:center;
@@ -393,12 +393,74 @@
     }
   }
 
+
+  /* v0.7.0 gunmetal visual treatment — geometry/layout intentionally unchanged */
+  body{
+    background:
+      radial-gradient(900px 430px at 50% 7%, rgba(83,91,99,.16), transparent 62%),
+      linear-gradient(180deg,#040608,#090c0f 48%,#050709 100%);
+  }
+  h1{display:none}
+  .attune-logo{
+    margin:0 auto;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    gap:.18em;
+    font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+    font-size:clamp(52px,6.4vw,110px);
+    font-weight:300;
+    letter-spacing:.15em;
+    color:#d9dde0;
+    text-shadow:0 2px 1px #000,0 0 12px rgba(173,183,191,.12);
+  }
+  .attune-logo .fork-u{
+    width:.62em;height:.94em;display:inline-block;position:relative;
+    margin:0 .01em -.04em -.02em;
+  }
+  .attune-logo .fork-u:before{
+    content:"";position:absolute;left:17%;right:17%;top:0;height:69%;
+    border-left:.075em solid #596169;border-right:.075em solid #596169;
+    border-bottom:.075em solid #596169;border-radius:0 0 .28em .28em;
+    box-shadow:inset 1px 0 rgba(220,225,228,.45),1px 0 rgba(0,0,0,.9);
+  }
+  .attune-logo .fork-u:after{
+    content:"";position:absolute;width:.075em;height:25%;left:50%;bottom:0;
+    transform:translateX(-50%);
+    background:linear-gradient(90deg,#252a2f,#8a939a 48%,#343a40);
+    box-shadow:0 1px 2px #000;
+  }
+  .bezel{
+    background:
+      radial-gradient(circle at 28% 19%,rgba(255,255,255,.12),transparent 18%),
+      radial-gradient(circle at 50% 50%,#272c31 0 61%,#090b0d 64%,#555e66 68%,#1b2024 73%,#050607 78%);
+    box-shadow:0 14px 26px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.10),0 0 0 1px rgba(122,132,141,.28);
+  }
+  .eye{
+    background:
+      radial-gradient(circle at 34% 27%,rgba(255,255,255,.16),transparent 12%),
+      radial-gradient(circle at 50% 44%,#535b62 0 9%,#343a40 28%,#171b1f 61%,#080a0c 73%,#252a2e 75%,#626b73 78%,#1c2024 81%,#090b0d 84%);
+  }
+  .eye::before{
+    background:
+      repeating-conic-gradient(from 0deg,rgba(255,255,255,.045) 0 .7deg,transparent .7deg 4deg),
+      radial-gradient(circle at 38% 30%,#69727a 0,#30363b 29%,#101316 73%,#050607 100%);
+  }
+  .eye::after{
+    background:radial-gradient(circle at 35% 30%,#c4cbd0,#687179 44%,#1d2226 75%);
+  }
+  button,.wells,.stl-download{
+    background:linear-gradient(180deg,#171c20,#080b0e);
+    border-color:rgba(125,135,144,.46);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.05);
+  }
+
 </style>
 </head>
 <body>
 <div class="page">
   <header>
-    <h1>ATTUNE</h1>
+    <h1>ATTUNE</h1><div class="attune-logo" aria-label="ATTUNE"><span>A</span><span>T</span><span>T</span><span class="fork-u" aria-hidden="true"></span><span>N</span><span>E</span></div>
     <div class="tagline">RESONATE • GROUND • CONNECT</div>
     <div id="audioStatus" style="margin-top:10px;font-size:12px;letter-spacing:.08em;color:#bfa77d;opacity:.72">Audio: waiting for first strike</div>
   </header>
@@ -424,11 +486,12 @@
         <svg class="fork-svg" viewBox="0 0 920 250" xmlns="http://www.w3.org/2000/svg" aria-label="double tuning fork">
           <defs>
             <linearGradient id="steelStroke" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#f1f4f7"/>
-              <stop offset="23%" stop-color="#c2c8d0"/>
-              <stop offset="48%" stop-color="#7c848e"/>
-              <stop offset="58%" stop-color="#d8dde3"/>
-              <stop offset="100%" stop-color="#9fa7b0"/>
+              <stop offset="0%" stop-color="#aab1b7"/>
+              <stop offset="18%" stop-color="#343a40"/>
+              <stop offset="43%" stop-color="#111519"/>
+              <stop offset="61%" stop-color="#687179"/>
+              <stop offset="82%" stop-color="#20262b"/>
+              <stop offset="100%" stop-color="#080a0c"/>
             </linearGradient>
           </defs>
 
@@ -449,10 +512,10 @@
           <g fill="none" stroke="url(#steelStroke)" stroke-width="30">
             <circle cx="460" cy="125" r="40"/>
           </g>
-          <circle cx="460" cy="125" r="26" fill="#101722" stroke="#4e5764" stroke-width="1.4"/>
-          <path d="M460 99 A26 26 0 0 1 486 125 H460Z" fill="#707985"/>
+          <circle cx="460" cy="125" r="26" fill="#101722" stroke="#7c858d" stroke-width="1.4"/>
+          <path d="M460 99 A26 26 0 0 1 486 125 H460Z" fill="#596169"/>
           <path d="M434 125 A26 26 0 0 1 460 99 V125Z" fill="#1b222c"/>
-          <path d="M460 151 A26 26 0 0 1 434 125 H460Z" fill="#59626e"/>
+          <path d="M460 151 A26 26 0 0 1 434 125 H460Z" fill="#353c42"/>
           <path d="M486 125 A26 26 0 0 1 460 151 V125Z" fill="#0b1017"/>
         </svg>
       </div>
