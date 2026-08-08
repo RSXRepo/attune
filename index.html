@@ -4,7 +4,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-<title>Attune v0.5.9</title>
+<title>Attune v0.6.0</title>
 <style>
   :root{
     --gold:#d7b979;
@@ -97,60 +97,57 @@
     border-radius:50%;
   }
   .eye{
-    position:absolute; inset:16px; border-radius:50%;
-    background:
-      radial-gradient(circle at 48% 38%, rgba(255,255,255,.24), transparent 16%),
-      radial-gradient(circle at 50% 50%, #fbfbf5 0 46%, #efeee9 47% 57%, #dcdad3 58% 66%, #b2b0ac 67% 69%, #fefef9 70%);
-    box-shadow:
-      inset 0 0 22px rgba(0,0,0,.16),
-      inset 0 0 0 1px rgba(255,255,255,.3);
+    position:absolute;
+    inset:17px;
+    border-radius:50%;
     overflow:hidden;
+    background:
+      radial-gradient(circle at 34% 27%, rgba(255,255,255,.19), transparent 12%),
+      radial-gradient(circle at 50% 44%, #34383d 0 9%, #24282d 28%, #111419 61%, #07090c 73%, #1c1710 75%, #80602f 78%, #17130d 81%, #080a0d 84%);
+    box-shadow:
+      inset 0 2px 8px rgba(255,255,255,.05),
+      inset 0 -14px 26px rgba(0,0,0,.65),
+      0 0 0 1px rgba(238,205,139,.20),
+      0 9px 18px rgba(0,0,0,.48);
   }
-  .iris{
+  .eye::before{
+    content:"";
     position:absolute;
-    width:56%;
-    height:56%;
-    left:22%;
-    top:22%;
+    inset:18%;
     border-radius:50%;
     background:
-      radial-gradient(circle at 52% 52%, rgba(255,255,255,.18), transparent 9%),
-      radial-gradient(circle at 50% 50%, #6ba0aa 0 18%, #1b5162 35%, #2a7b88 52%, #163946 63%, #0f1b22 72%, transparent 73%),
-      conic-gradient(from 0deg, rgba(255,255,255,.08), transparent 12%, rgba(255,255,255,.08) 20%, transparent 30%, rgba(255,255,255,.08) 38%, transparent 48%, rgba(255,255,255,.08) 58%, transparent 68%, rgba(255,255,255,.08) 78%, transparent 88%, rgba(255,255,255,.08) 96%, transparent 100%);
-    box-shadow: inset 0 0 18px rgba(0,0,0,.32), 0 0 0 2px rgba(27,31,35,.28);
+      repeating-conic-gradient(from 0deg,
+        rgba(255,255,255,.055) 0 .7deg,
+        transparent .7deg 4deg),
+      radial-gradient(circle at 38% 30%, #4b5057 0, #23272c 29%, #0c0f13 73%, #050608 100%);
+    box-shadow:
+      inset 0 1px 2px rgba(255,255,255,.12),
+      inset 0 -10px 17px rgba(0,0,0,.60),
+      0 0 0 1px rgba(0,0,0,.75);
   }
-  .pupil{
+  .eye::after{
+    content:"";
     position:absolute;
-    width:24%;
-    height:24%;
-    left:38%;
-    top:38%;
+    width:11%;
+    height:11%;
+    left:44.5%;
+    top:44.5%;
     border-radius:50%;
-    background: radial-gradient(circle at 42% 36%, rgba(255,255,255,.12), transparent 12%), #050607;
-    box-shadow: 0 0 0 1px rgba(255,255,255,.05), 0 0 14px rgba(0,0,0,.36);
+    background:radial-gradient(circle at 35% 30%, #d7c08b, #76572e 44%, #1b160f 75%);
+    box-shadow:0 1px 4px rgba(0,0,0,.75), inset 0 1px 1px rgba(255,255,255,.25);
   }
-  .gloss{
-    position:absolute;
-    width:20%;
-    height:20%;
-    left:30%;
-    top:26%;
-    border-radius:50%;
-    background: radial-gradient(circle at 36% 36%, rgba(255,255,255,.82), rgba(255,255,255,.20) 30%, transparent 58%);
-    filter: blur(.5px);
-    opacity:.65;
-  }
+  .iris,.pupil,.gloss{display:none}
   .pointer{
     position:absolute;
     left:50%;
-    top:16px;
-    width:6px;
-    height:46px;
-    border-radius:6px;
-    background:linear-gradient(180deg,#fff3c6,#eac57b 62%, #b1843f);
-    box-shadow:0 0 8px rgba(255,219,151,.22);
+    top:22px;
+    width:4px;
+    height:42px;
+    border-radius:4px;
+    background:linear-gradient(180deg,#fff1be 0%,#e6bd68 55%,#9b6f31 100%);
+    box-shadow:0 0 7px rgba(239,199,119,.26);
     transform:translateX(-50%) rotate(0deg);
-    transform-origin:50% calc(var(--size) / 2 - 16px);
+    transform-origin:50% calc(var(--size) / 2 - 22px);
     z-index:6;
   }
 
@@ -336,6 +333,59 @@
     text-align:center;
   }
 
+
+  /* v0.6.0 layout refinement */
+  .controls{
+    width:min(880px,100%);
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:14px;
+    padding:13px;
+    justify-content:center;
+  }
+  .controls button{width:100%}
+  .wave{display:none !important}
+
+  .stl-panel{
+    width:min(920px,100%);
+    display:grid;
+    grid-template-columns:minmax(230px, .8fr) minmax(280px, 1.2fr);
+    gap:14px;
+    align-items:stretch;
+  }
+  .stl-panel .stl-note{
+    grid-column:1/-1;
+  }
+  .stl-wells{
+    min-height:58px;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+  }
+  .stl-download{
+    min-height:58px;
+    width:100%;
+  }
+
+  @media(max-width:700px){
+    .controls{
+      grid-template-columns:repeat(3,minmax(0,1fr));
+      gap:8px;
+      padding:9px;
+    }
+    .controls button{
+      min-height:62px;
+      padding:0 6px;
+      letter-spacing:.04em;
+      font-size:12px;
+    }
+    .stl-panel{
+      grid-template-columns:1fr;
+    }
+    .stl-panel .stl-note{
+      grid-column:1;
+    }
+  }
+
 </style>
 </head>
 <body>
@@ -424,16 +474,18 @@
   </section>
 
   <div class="instructions">
-    Strike the first fork and find a tone that resonates with you.<br>
-    Then strike the second fork and explore a harmony that resonates with the first.
+    Strike the left fork and find a tone that resonates with you.<br>
+    Then strike the right fork and explore a harmony that resonates with the left.
   </div>
 
   <section class="controls">
     <button type="button" id="leftBtn">Strike Left</button>
     <button type="button" id="bothBtn">Strike Both</button>
-    <div class="wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
     <button type="button" id="rightBtn">Strike Right</button>
-    <div class="wells">
+  </section>
+
+  <div class="stl-panel">
+    <div class="wells stl-wells">
       <label for="wellsSelect">Consonant Wells</label>
       <select id="wellsSelect">
         <option>Free</option>
@@ -442,12 +494,11 @@
         <option>Settled</option>
       </select>
     </div>
-  </section>
 
-  <div class="stl-panel">
     <button type="button" class="stl-download" id="stlBtn">
       Generate &amp; Download STL
     </button>
+
     <div class="stl-note" id="stlNote">Current dials • 256.0 Hz / 384.0 Hz</div>
   </div>
 
@@ -849,6 +900,87 @@
     return dx*dx + dy*dy <= r*r;
   }
 
+
+  // Simple stencil/vector characters for through-cut frequency markings.
+  // Designed specifically to survive the voxel STL generator without a font dependency.
+  var sevenSeg = {
+    "0":["a","b","c","d","e","f"],
+    "1":["b","c"],
+    "2":["a","b","g","e","d"],
+    "3":["a","b","c","d","g"],
+    "4":["f","g","b","c"],
+    "5":["a","f","g","c","d"],
+    "6":["a","f","g","e","c","d"],
+    "7":["a","b","c"],
+    "8":["a","b","c","d","e","f","g"],
+    "9":["a","b","c","d","f","g"]
+  };
+
+  function inRect(px,py,x0,x1,y0,y1){
+    return px>=x0 && px<=x1 && py>=y0 && py<=y1;
+  }
+
+  function insideStencilChar(px,py,ch,x0,y0,w,h,t){
+    var xm=x0+w/2;
+    var ym=y0+h/2;
+
+    if(sevenSeg[ch]){
+      var segs=sevenSeg[ch];
+      for(var i=0;i<segs.length;i++){
+        var s=segs[i];
+        if(s==="a" && inRect(px,py,x0+t,x0+w-t,y0+h-t,y0+h)) return true;
+        if(s==="g" && inRect(px,py,x0+t,x0+w-t,ym-t/2,ym+t/2)) return true;
+        if(s==="d" && inRect(px,py,x0+t,x0+w-t,y0,y0+t)) return true;
+        if(s==="f" && inRect(px,py,x0,x0+t,ym+t/2,y0+h-t)) return true;
+        if(s==="b" && inRect(px,py,x0+w-t,x0+w,ym+t/2,y0+h-t)) return true;
+        if(s==="e" && inRect(px,py,x0,x0+t,y0+t,ym-t/2)) return true;
+        if(s==="c" && inRect(px,py,x0+w-t,x0+w,y0+t,ym-t/2)) return true;
+      }
+      return false;
+    }
+
+    if(ch==="H"){
+      return inRect(px,py,x0,x0+t,y0,y0+h) ||
+             inRect(px,py,x0+w-t,x0+w,y0,y0+h) ||
+             inRect(px,py,x0,x0+w,ym-t/2,ym+t/2);
+    }
+
+    if(ch==="Z"){
+      if(inRect(px,py,x0,x0+w,y0+h-t,y0+h) ||
+         inRect(px,py,x0,x0+w,y0,y0+t)) return true;
+      // diagonal from upper-right to lower-left
+      var u=(px-x0)/w;
+      var target=y0+h*(1-u);
+      return px>=x0 && px<=x0+w && Math.abs(py-target)<=t*.65;
+    }
+
+    return false;
+  }
+
+  function insideFrequencyCut(x,y,side,freq,tineLen){
+    var text=String(Math.round(freq))+"HZ";
+    var charW=3.2;
+    var charH=5.0;
+    var gap=.75;
+    var stroke=.72;
+    var total=text.length*charW+(text.length-1)*gap;
+
+    // Place the marking around the middle of the upper tine.
+    var hubR=21, shoulder=16;
+    var tineBase=hubR+shoulder;
+    var centerX=side*(tineBase+tineLen*.52);
+    var xStart=centerX-total/2;
+    var yStart=10-charH/2;
+
+    for(var i=0;i<text.length;i++){
+      var cx=xStart+i*(charW+gap);
+      if(insideStencilChar(x,y,text.charAt(i),cx,yStart,charW,charH,stroke)){
+        return true;
+      }
+    }
+    return false;
+  }
+
   function isInsideQFOG(x,y,leftHz,rightHz){
     var hubR = 21;
     var hubHoleR = 8.5;
@@ -894,8 +1026,16 @@
       x,y,rx0,rx1,-yc-tineWidth/2,-yc+tineWidth/2,endR
     );
 
-    return inHub || inLeftWeb || inRightWeb ||
-           inLeftTop || inLeftBottom || inRightTop || inRightBottom;
+    var solid = inHub || inLeftWeb || inRightWeb ||
+                inLeftTop || inLeftBottom || inRightTop || inRightBottom;
+
+    if(!solid) return false;
+
+    // Cut the selected frequencies all the way through the upper tine on each side.
+    if(inLeftTop && insideFrequencyCut(x,y,-1,leftHz,leftLen)) return false;
+    if(inRightTop && insideFrequencyCut(x,y,1,rightHz,rightLen)) return false;
+
+    return true;
   }
 
   function pushTri(tris,a,b,c){
@@ -1073,7 +1213,7 @@
           stlNote.textContent =
             "Generated " + filename +
             " • " + tris.length.toLocaleString() +
-            " triangles • " + kb.toLocaleString() + " KB";
+            " triangles • " + kb.toLocaleString() + " KB • frequencies cut through tines";
         }
 
         setTimeout(function(){ URL.revokeObjectURL(url); },4000);
